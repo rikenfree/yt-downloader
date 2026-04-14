@@ -16,12 +16,12 @@ ctk.set_default_color_theme("blue")
 
 RESOLUTIONS = {
     "Audio only (mp3)": ("8", "bestaudio/best", True),
-    "360p": ("1", "bestvideo[height<=360]+bestaudio/best[height<=360]", False),
-    "480p": ("2", "bestvideo[height<=480]+bestaudio/best[height<=480]", False),
-    "720p": ("3", "bestvideo[height<=720]+bestaudio/best[height<=720]", False),
-    "1080p": ("4", "bestvideo[height<=1080]+bestaudio/best[height<=1080]", False),
-    "1440p": ("5", "bestvideo[height<=1440]+bestaudio/best[height<=1440]", False),
-    "4K": ("6", "bestvideo[height<=2160]+bestaudio/best[height<=2160]", False),
+    "360p": ("1", "bestvideo[height<=360]+bestaudio/best[height<=360]/best", False),
+    "480p": ("2", "bestvideo[height<=480]+bestaudio/best[height<=480]/best", False),
+    "720p": ("3", "bestvideo[height<=720]+bestaudio/best[height<=720]/best", False),
+    "1080p": ("4", "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best", False),
+    "1440p": ("5", "bestvideo[height<=1440]+bestaudio/best[height<=1440]/best", False),
+    "4K": ("6", "bestvideo[height<=2160]+bestaudio/best[height<=2160]/best", False),
     "Best available": ("7", "bestvideo+bestaudio/best", False),
 }
 
@@ -32,7 +32,7 @@ class YouTubeDownloaderApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("YouTube Video & Channel Downloader")
+        self.title("Universal Media Downloader (YouTube, Instagram, TikTok)")
         self.geometry("850x650")
         self.minsize(750, 600)
 
@@ -45,26 +45,46 @@ class YouTubeDownloaderApp(ctk.CTk):
 
         # Main Layout
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1) # Video list expands
-        self.grid_rowconfigure(5, weight=1) # Console expands
+        self.grid_rowconfigure(3, weight=1) # Video list expands
+        self.grid_rowconfigure(6, weight=1) # Console expands
         
-        # 1. URL Input & Fetch
-        self.url_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.url_frame.grid(row=0, column=0, padx=20, pady=(20, 5), sticky="ew")
-        self.url_frame.grid_columnconfigure(0, weight=1)
+        # 1. URL Input Tabs
+        self.tabview = ctk.CTkTabview(self, height=180)
+        self.tabview.grid(row=0, column=0, padx=20, pady=(20, 5), sticky="ew")
+        
+        self.tabview.add("YouTube")
+        self.tabview.add("Instagram")
+        self.tabview.add("TikTok")
 
-        self.url_label = ctk.CTkLabel(self.url_frame, text="YouTube URL (Video, Playlist, Channel, Shorts):", font=("Inter", 14, "bold"))
-        self.url_label.grid(row=0, column=0, columnspan=2, pady=(0, 5), sticky="w")
+        # YouTube Tab Layout
+        self.tabview.tab("YouTube").grid_columnconfigure(0, weight=1)
+        self.yt_url_entry = ctk.CTkTextbox(self.tabview.tab("YouTube"), height=100, font=("Inter", 12))
+        self.yt_url_entry.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
         
-        self.url_entry = ctk.CTkEntry(self.url_frame, placeholder_text="Paste your link here...", height=40)
-        self.url_entry.grid(row=1, column=0, padx=(0, 10), sticky="ew")
+        # Instagram Tab Layout
+        self.tabview.tab("Instagram").grid_columnconfigure(0, weight=1)
+        self.ig_url_entry = ctk.CTkTextbox(self.tabview.tab("Instagram"), height=70, font=("Inter", 12))
+        self.ig_url_entry.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="ew")
+        self.ig_file_btn = ctk.CTkButton(self.tabview.tab("Instagram"), text="Load URLs from File (.txt)", command=lambda: self.load_file_to_textbox(self.ig_url_entry))
+        self.ig_file_btn.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="w")
+
+        # TikTok Tab Layout
+        self.tabview.tab("TikTok").grid_columnconfigure(0, weight=1)
+        self.tt_url_entry = ctk.CTkTextbox(self.tabview.tab("TikTok"), height=70, font=("Inter", 12))
+        self.tt_url_entry.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="ew")
+        self.tt_file_btn = ctk.CTkButton(self.tabview.tab("TikTok"), text="Load URLs from File (.txt)", command=lambda: self.load_file_to_textbox(self.tt_url_entry))
+        self.tt_file_btn.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="w")
         
-        self.fetch_btn = ctk.CTkButton(self.url_frame, text="Fetch Info", width=120, height=40, font=("Inter", 13, "bold"), command=self.start_fetch)
-        self.fetch_btn.grid(row=1, column=1, sticky="e")
+        # 1.5 Fetch Frame
+        self.fetch_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.fetch_frame.grid(row=1, column=0, padx=20, pady=5, sticky="ew")
+        self.fetch_frame.grid_columnconfigure(0, weight=1)
+        self.fetch_btn = ctk.CTkButton(self.fetch_frame, text="Fetch Info from Selected Tab", width=220, height=40, font=("Inter", 13, "bold"), command=self.start_fetch)
+        self.fetch_btn.grid(row=0, column=0, sticky="e")
 
         # 2. List Controls
         self.list_controls_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.list_controls_frame.grid(row=1, column=0, padx=20, pady=(5, 5), sticky="ew")
+        self.list_controls_frame.grid(row=2, column=0, padx=20, pady=(5, 5), sticky="ew")
         
         self.select_all_btn = ctk.CTkButton(self.list_controls_frame, text="Select All", width=100, height=30, command=self.select_all_videos)
         self.select_all_btn.grid(row=0, column=0, padx=(0, 10))
@@ -74,12 +94,12 @@ class YouTubeDownloaderApp(ctk.CTk):
 
         # 3. Video List Frame
         self.video_list_frame = ctk.CTkScrollableFrame(self, height=200)
-        self.video_list_frame.grid(row=2, column=0, padx=20, pady=(0, 10), sticky="nsew")
+        self.video_list_frame.grid(row=3, column=0, padx=20, pady=(0, 10), sticky="nsew")
         self.video_list_frame.grid_columnconfigure(1, weight=1)
 
         # 4. Path & Format Options
         self.options_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.options_frame.grid(row=3, column=0, padx=20, pady=5, sticky="ew")
+        self.options_frame.grid(row=4, column=0, padx=20, pady=5, sticky="ew")
         self.options_frame.grid_columnconfigure(1, weight=1)
 
         self.format_label = ctk.CTkLabel(self.options_frame, text="Resolution / Format:", font=("Inter", 12))
@@ -99,9 +119,12 @@ class YouTubeDownloaderApp(ctk.CTk):
         self.browse_btn = ctk.CTkButton(self.options_frame, text="Browse", width=80, command=self.browse_folder)
         self.browse_btn.grid(row=1, column=2, padx=0, pady=(15, 0), sticky="e")
 
+        self.open_folder_btn = ctk.CTkButton(self.options_frame, text="Open Folder", width=100, command=self.open_save_folder)
+        self.open_folder_btn.grid(row=1, column=3, padx=(10, 0), pady=(15, 0), sticky="e")
+
         # 5. Action Buttons
         self.action_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.action_frame.grid(row=4, column=0, padx=20, pady=15, sticky="ew")
+        self.action_frame.grid(row=5, column=0, padx=20, pady=15, sticky="ew")
         self.action_frame.grid_columnconfigure((0, 1, 2), weight=1)
 
         self.download_btn = ctk.CTkButton(self.action_frame, text="Start Download", font=("Inter", 14, "bold"), height=40, command=self.start_download)
@@ -115,7 +138,7 @@ class YouTubeDownloaderApp(ctk.CTk):
 
         # 6. Log Output
         self.console_textbox = ctk.CTkTextbox(self, state="disabled", font=("Consolas", 12))
-        self.console_textbox.grid(row=5, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        self.console_textbox.grid(row=6, column=0, padx=20, pady=(0, 20), sticky="nsew")
 
     def select_all_videos(self):
         for row in self.video_rows:
@@ -130,24 +153,61 @@ class YouTubeDownloaderApp(ctk.CTk):
         if folder:
             self.save_path.set(folder)
 
+    def open_save_folder(self):
+        folder = self.save_path.get()
+        if os.path.exists(folder):
+            try:
+                # os.startfile is Windows only, but we know the user is on Windows
+                os.startfile(folder)
+            except Exception as e:
+                self.log_message(f"ERROR opening folder: {str(e)}")
+        else:
+            self.log_message("ERROR: Save folder does not exist.")
+
     def log_message(self, message):
         self.console_textbox.configure(state="normal")
         self.console_textbox.insert("end", message + "\n")
         self.console_textbox.see("end")
         self.console_textbox.configure(state="disabled")
 
+    def load_file_to_textbox(self, textbox):
+        file_path = filedialog.askopenfilename(
+            title="Select Text File", 
+            filetypes=(("Text Files", "*.txt"), ("All Files", "*.*"))
+        )
+        if file_path:
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                textbox.delete("1.0", "end")
+                textbox.insert("end", content)
+                self.log_message(f"Loaded URLs from {os.path.basename(file_path)}")
+            except Exception as e:
+                self.log_message(f"ERROR reading file: {str(e)}")
+
     # --- FETCH LOGIC ---
     def start_fetch(self):
-        url = self.url_entry.get().strip()
-        if not url:
-            self.log_message("ERROR: Please enter a YouTube URL.")
+        active_tab = self.tabview.get()
+        if active_tab == "YouTube":
+            urls_text = self.yt_url_entry.get("1.0", "end").strip()
+        elif active_tab == "Instagram":
+            urls_text = self.ig_url_entry.get("1.0", "end").strip()
+        elif active_tab == "TikTok":
+            urls_text = self.tt_url_entry.get("1.0", "end").strip()
+        else:
+            urls_text = ""
+
+        if not urls_text:
+            self.log_message(f"ERROR: Please enter valid URLs in the {active_tab} tab.")
             return
+
+        urls = [u.strip() for u in urls_text.splitlines() if u.strip()]
 
         self.fetch_btn.configure(text="Fetching...", state="disabled")
         self.console_textbox.configure(state="normal")
         self.console_textbox.delete("1.0", "end")
         self.console_textbox.configure(state="disabled")
-        self.log_message(f"Fetching info for: {url}...")
+        self.log_message(f"Fetching info for {len(urls)} link(s)...")
         
         # Clear existing list
         for row in self.video_rows:
@@ -158,44 +218,54 @@ class YouTubeDownloaderApp(ctk.CTk):
         self.video_rows.clear()
         self.video_queue.clear()
         
-        thread = threading.Thread(target=self.fetch_worker, args=(url,))
+        thread = threading.Thread(target=self.fetch_worker, args=(urls,))
         thread.daemon = True
         thread.start()
 
-    def fetch_worker(self, url):
+    def fetch_worker(self, urls):
         ydl_opts = {
             "extract_flat": True,
             "quiet": True,
             "no_warnings": True,
-            "remote_components": ["ejs:github"],
-            "js_runtimes": {"node": {}}
         }
         
+        all_entries = []
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
+                for url in urls:
+                    try:
+                        info = ydl.extract_info(url, download=False)
+                        if info:
+                            if 'entries' in info:
+                                all_entries.extend(info['entries'])
+                            else:
+                                all_entries.append(info)
+                    except Exception as e:
+                        self.after(0, self.log_message, f"ERROR fetching info for {url}: {str(e)}")
             
-            # Could be a single video or a playlist
-            if 'entries' in info:
-                entries = info['entries']
-            else:
-                entries = [info]
-                
-            valid_entries = [e for e in entries if e and (e.get('url') or e.get('id'))]
+            valid_entries = [e for e in all_entries if e and (e.get('url') or e.get('id'))]
             self.after(0, self.populate_list, valid_entries)
         except Exception as e:
-            self.after(0, self.log_message, f"ERROR fetching info: {str(e)}")
+            self.after(0, self.log_message, f"ERROR during fetch process: {str(e)}")
             self.after(0, lambda: self.fetch_btn.configure(text="Fetch Info", state="normal"))
 
     def populate_list(self, entries):
         self.video_queue = entries
         for i, entry in enumerate(entries):
             # Resolve url
-            vid_url = entry.get('url')
-            if not vid_url:
-                vid_url = f"https://www.youtube.com/watch?v={entry.get('id')}"
+            vid_url = entry.get('url') or entry.get('webpage_url')
+            if not vid_url and entry.get('id'):
+                # Last resort fallback: reconstruct URL from extractor + id if available
+                extractor = entry.get('ie_key', '').lower()
+                eid = entry.get('id', '')
+                if 'instagram' in extractor:
+                    vid_url = f"https://www.instagram.com/p/{eid}/"
+                elif 'tiktok' in extractor:
+                    vid_url = f"https://www.tiktok.com/@user/video/{eid}"
+                else:
+                    vid_url = f"https://www.youtube.com/watch?v={eid}"
                 
-            title = entry.get('title', f"Video {i+1}")
+            title = entry.get('title') or entry.get('id') or f"Media {i+1}"
             
             var = ctk.IntVar(value=1)
             cb = ctk.CTkCheckBox(self.video_list_frame, text="", variable=var, width=30)
@@ -223,8 +293,8 @@ class YouTubeDownloaderApp(ctk.CTk):
                 'status': 'Pending' # Pending, Downloading, Paused, Completed, Error
             })
 
-        self.log_message(f"Found {len(entries)} item(s).")
-        self.fetch_btn.configure(text="Fetch Info", state="normal")
+        self.log_message(f"Found {len(entries)} item(s). Ready to download.")
+        self.fetch_btn.configure(text="Fetch Info from Selected Tab", state="normal")
         self.current_download_index = -1
 
     # --- DOWNLOAD LOGIC ---
@@ -294,7 +364,7 @@ class YouTubeDownloaderApp(ctk.CTk):
 
             # Update UI for current item
             self.after(0, self.update_row_state, self.current_download_index, 'Downloading', 0.0)
-            self.log_message(f"Starting: {row['title']}")
+            self.after(0, self.log_message, f"Starting: {row['title']}")
 
             output_template = os.path.join(output_folder, "%(title)s.%(ext)s")
 
@@ -307,8 +377,6 @@ class YouTubeDownloaderApp(ctk.CTk):
                 "no_warnings": False,
                 "no_color": True,
                 "logger": self.MyLogger(self.print_log),
-                "js_runtimes": {"node": {}},
-                "remote_components": ["ejs:github"]
             }
 
             if globals().get("FFMPEG_PATH"):
