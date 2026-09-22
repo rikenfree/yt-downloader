@@ -3,7 +3,8 @@ echo ==============================================
 echo YouTube Downloader GUI Startup
 echo ==============================================
 echo.
-echo Checking and installing missing requirements...
+echo Checking and updating requirements...
+pip install --upgrade yt-dlp
 pip install -r requirements.txt
 echo.
 echo Starting YouTube Downloader...

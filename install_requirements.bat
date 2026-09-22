@@ -3,7 +3,7 @@ echo ==============================================
 echo Installing YouTube Downloader Requirements
 echo ==============================================
 echo.
-pip install -r requirements.txt
+pip install --upgrade -r requirements.txt
 echo.
 echo Installation complete! 
 pause

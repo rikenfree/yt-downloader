@@ -3,6 +3,9 @@ from tkinter import filedialog
 import yt_dlp
 import threading
 import os
+import shutil
+import subprocess
+import sys
 
 try:
     import imageio_ffmpeg
@@ -10,19 +13,30 @@ try:
 except ImportError:
     FFMPEG_PATH = None
 
+def get_base_ydl_opts():
+    opts = {}
+    js_runtimes = {}
+    if shutil.which("node"):
+        js_runtimes["node"] = {}
+    if shutil.which("deno"):
+        js_runtimes["deno"] = {}
+    if js_runtimes:
+        opts["js_runtimes"] = js_runtimes
+    return opts
+
 # Configurations
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
 
 RESOLUTIONS = {
     "Audio only (mp3)": ("8", "bestaudio/best", True),
-    "360p": ("1", "bestvideo[height<=360]+bestaudio/best[height<=360]/best", False),
-    "480p": ("2", "bestvideo[height<=480]+bestaudio/best[height<=480]/best", False),
-    "720p": ("3", "bestvideo[height<=720]+bestaudio/best[height<=720]/best", False),
-    "1080p": ("4", "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best", False),
-    "1440p": ("5", "bestvideo[height<=1440]+bestaudio/best[height<=1440]/best", False),
-    "4K": ("6", "bestvideo[height<=2160]+bestaudio/best[height<=2160]/best", False),
-    "Best available": ("7", "bestvideo+bestaudio/best", False),
+    "360p": ("1", "bestvideo[height<=360]+bestaudio[ext=m4a]/bestvideo[height<=360]+bestaudio/best[height<=360]/best", False),
+    "480p": ("2", "bestvideo[height<=480]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480]/best", False),
+    "720p": ("3", "bestvideo[height<=720]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best", False),
+    "1080p": ("4", "bestvideo[height<=1080]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best", False),
+    "1440p": ("5", "bestvideo[height<=1440]+bestaudio[ext=m4a]/bestvideo[height<=1440]+bestaudio/best[height<=1440]/best", False),
+    "4K": ("6", "bestvideo[height<=2160]+bestaudio[ext=m4a]/bestvideo[height<=2160]+bestaudio/best[height<=2160]/best", False),
+    "Best available": ("7", "bestvideo+bestaudio[ext=m4a]/bestvideo+bestaudio/best", False),
 }
 
 class PauseDownloadException(Exception):
@@ -85,12 +99,16 @@ class YouTubeDownloaderApp(ctk.CTk):
         # 2. List Controls
         self.list_controls_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.list_controls_frame.grid(row=2, column=0, padx=20, pady=(5, 5), sticky="ew")
+        self.list_controls_frame.grid_columnconfigure(2, weight=1)
         
         self.select_all_btn = ctk.CTkButton(self.list_controls_frame, text="Select All", width=100, height=30, command=self.select_all_videos)
         self.select_all_btn.grid(row=0, column=0, padx=(0, 10))
         
         self.deselect_all_btn = ctk.CTkButton(self.list_controls_frame, text="Deselect All", width=100, height=30, command=self.deselect_all_videos)
         self.deselect_all_btn.grid(row=0, column=1)
+
+        self.update_btn = ctk.CTkButton(self.list_controls_frame, text="Update yt-dlp", width=110, height=30, fg_color="#2b719e", hover_color="#1d4e6d", command=self.start_update_engine)
+        self.update_btn.grid(row=0, column=2, sticky="e")
 
         # 3. Video List Frame
         self.video_list_frame = ctk.CTkScrollableFrame(self, height=200)
@@ -227,6 +245,7 @@ class YouTubeDownloaderApp(ctk.CTk):
             "extract_flat": True,
             "quiet": True,
             "no_warnings": True,
+            **get_base_ydl_opts(),
         }
         
         all_entries = []
@@ -296,6 +315,32 @@ class YouTubeDownloaderApp(ctk.CTk):
         self.log_message(f"Found {len(entries)} item(s). Ready to download.")
         self.fetch_btn.configure(text="Fetch Info from Selected Tab", state="normal")
         self.current_download_index = -1
+
+    def start_update_engine(self):
+        self.update_btn.configure(state="disabled", text="Updating...")
+        self.log_message("\n--- Checking for updates to yt-dlp ---")
+        
+        def run_update():
+            try:
+                proc = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                output = (proc.stdout + "\n" + proc.stderr).strip()
+                if proc.returncode == 0:
+                    self.after(0, self.log_message, output)
+                    self.after(0, self.log_message, "SUCCESS: yt-dlp engine updated to the latest version!\n")
+                else:
+                    self.after(0, self.log_message, f"ERROR updating yt-dlp:\n{output}\n")
+            except Exception as e:
+                self.after(0, self.log_message, f"ERROR: Failed to run update: {str(e)}")
+            finally:
+                self.after(0, lambda: self.update_btn.configure(state="normal", text="Update yt-dlp"))
+
+        thread = threading.Thread(target=run_update, daemon=True)
+        thread.start()
 
     # --- DOWNLOAD LOGIC ---
     def start_download(self):
@@ -377,6 +422,7 @@ class YouTubeDownloaderApp(ctk.CTk):
                 "no_warnings": False,
                 "no_color": True,
                 "logger": self.MyLogger(self.print_log),
+                **get_base_ydl_opts(),
             }
 
             if globals().get("FFMPEG_PATH"):
@@ -389,6 +435,11 @@ class YouTubeDownloaderApp(ctk.CTk):
                     "preferredquality": "192",
                 }]
                 ydl_opts["merge_output_format"] = None
+            else:
+                # Ensure audio track in video files is universally compatible (AAC) for Windows Media Player, QuickTime, etc.
+                ydl_opts["postprocessor_args"] = {
+                    "Merger": ["-c:v", "copy", "-c:a", "aac"]
+                }
 
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -409,7 +460,10 @@ class YouTubeDownloaderApp(ctk.CTk):
                 self.after(0, self.handle_paused_state)
                 return
             except Exception as e:
-                self.after(0, self.log_message, f"FAILED: {row['title']} - {str(e)}")
+                err_msg = str(e)
+                self.after(0, self.log_message, f"FAILED: {row['title']} - {err_msg}")
+                if "403" in err_msg or "Forbidden" in err_msg:
+                    self.after(0, self.log_message, "TIP: YouTube may have updated its format signatures. Click 'Update yt-dlp' above or run 'pip install -U yt-dlp' to get the latest fix.")
                 self.after(0, self.update_row_state, self.current_download_index, 'Error', None)
                 self.current_download_index += 1
 
